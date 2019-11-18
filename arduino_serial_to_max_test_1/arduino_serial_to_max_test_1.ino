@@ -1,3 +1,7 @@
+// @author Leon Santen
+// @project Interactive Art
+// To open port on Linux: sudo chmod a+rw /dev/ttyACM0 
+
 const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
 const int analogOutPin = 9; // Analog output pin that the LED is attached to
 const int LDRPin = A1;
