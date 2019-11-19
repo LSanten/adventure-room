@@ -12,6 +12,8 @@ uint32_t US_frequency = 10; //frequency: clicks per second
 uint32_t current_millis; 
 uint32_t task_millis = 0;
 uint32_t task_length = 1000/US_frequency;
+int receivedSerial; // received serial input from max msp
+const int gate = 11; // gate value for transistor for LED
 
 int state = 0;
 String subState;
@@ -26,6 +28,7 @@ void setup()
   pinMode(TRIGGER, OUTPUT);
   digitalWrite(TRIGGER, HIGH);
   pinMode(LED, OUTPUT);
+  pinMode(gate, OUTPUT);
   Serial.begin(9600);
 }
 void loop()
@@ -75,5 +78,11 @@ void loop()
     Serial.println(subState);
     oldState = state;
     oldSubState = subState;
-  }   
+  }
+
+  // check for serial messages from max msp
+  if (Serial.available()){
+    receivedSerial = Serial.read();
+    analogWrite(gate, receivedSerial);
+  }
 }
