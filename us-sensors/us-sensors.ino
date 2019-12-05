@@ -8,7 +8,7 @@ const int TRIGGER = 8;
 const int LED = 13;
 uint32_t serial_freq_time = 0;
 float measured_serial_freq;
-uint32_t US_frequency = 10; //frequency: clicks per second
+uint32_t US_frequency = 5; //frequency: clicks per second
 uint32_t current_millis; 
 uint32_t task_millis = 0;
 uint32_t task_length = 1000/US_frequency;
