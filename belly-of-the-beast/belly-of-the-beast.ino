@@ -3,17 +3,25 @@
 // To open port on Linux: sudo chmod a+rw /dev/ttyACM0 
 
 #include "Arduino.h"
+#include <Adafruit_NeoPixel.h>
+
+#define LED_PIN    6 // Which pin on the Arduino is connected to the NeoPixels?
+#define LED_COUNT 8  // How many NeoPixels are attached to the Arduino? 
+
+Adafruit_NeoPixel strip1(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 const int TRIGGER = 8;
 const int LED = 13;
 uint32_t serial_freq_time = 0;
 float measured_serial_freq;
 uint32_t US_frequency = 9; //frequency: clicks per second
+uint32_t LED_frequency = 10; //frequency of flickering for LEDS
 uint32_t current_millis; 
-uint32_t task_millis = 0;
-uint32_t task_length = 1000/US_frequency;
+uint32_t US_last_task_millis = 0;
+uint32_t LED_last_task_millis = 0;
+uint32_t US_task_length = 1000/US_frequency; //task length for US sensors
+uint32_t LED_task_length = 1000/LED_frequency; //task length for LED flickering
 int receivedSerial; // received serial input from max msp
-const int gate = 11; // gate value for transistor for LED
 
 int state = 0;
 String subState;
@@ -28,20 +36,58 @@ void setup()
   pinMode(TRIGGER, OUTPUT);
   digitalWrite(TRIGGER, HIGH);
   pinMode(LED, OUTPUT);
-  pinMode(gate, OUTPUT);
   Serial.begin(9600);
+  strip1.begin();
+  strip1.show(); // Initialize all pixels to 'off'
+
+  state = 1;
 }
 void loop()
 {
-  state = 1;
+  current_millis = millis(); //current time for all frequencies later in the code
+
   
   if (state==1){
-    current_millis = millis();
+    //light settings for state 1
+    if (current_millis - LED_last_task_millis >= LED_task_length){
+      LED_last_task_millis = millis();
+
+      int LED_color_array[5][3] = { {255,102,25},
+                                    {255,121,25},
+                                    {255,90,0},
+                                    {255,77,0},
+                                    {255,101,66} };
+      uint32_t LED_random_color = random(0,4);
+      uint32_t orange = strip1.Color(LED_color_array[LED_random_color][0],LED_color_array[LED_random_color][1],LED_color_array[LED_random_color][2]);
+      strip1.fill(orange, 0, 7);
+    }    
+  }
+  
+  if (state==2){
+    //light settings for state 2
+    if (current_millis - LED_last_task_millis >= LED_task_length){
+      LED_last_task_millis = millis();
+      uint32_t red = strip1.Color(255, 42, 0);
+      strip1.fill(red, 0, 7);      
+    }    
+  }
+  
+  if (state==3){
+    //light settings for state 3
+  }
+  
+  if (state==4){
+    //light settings for state 4
+  }
+
+  // Get signal from US sensors
+  if (state==1 or state==2 or state==3 or state==4){
+    
   
     // send trigger and run code in if statement with frequency --> US_frequency
-    if (current_millis - task_millis >= task_length){
+    if (current_millis - US_last_task_millis >= US_task_length){
       digitalWrite(LED, HIGH);
-      task_millis = millis();
+      US_last_task_millis = millis();
       // generate the pulse to trigger the sensor
       digitalWrite(TRIGGER, LOW);
       delayMicroseconds(50);
@@ -73,6 +119,8 @@ void loop()
     }
    digitalWrite(LED, LOW);
   }
+
+  //RUN EVERY TIME - OUTSIDE OF STATEMACHINE
   if (state != oldState or subState != oldSubState){    
     Serial.print(state);
     Serial.print(" ");
@@ -84,6 +132,9 @@ void loop()
   // check for serial messages from max msp
   if (Serial.available()){
     receivedSerial = Serial.read();
-    analogWrite(gate, receivedSerial);
+    state = receivedSerial;
   }
+
+  // SHOW LED Changes
+  strip1.show();
 }
