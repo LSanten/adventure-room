@@ -40,7 +40,7 @@ void setup()
   strip1.begin();
   strip1.show(); // Initialize all pixels to 'off'
 
-  state = 1;
+  state = 18;
 }
 void loop()
 {
@@ -65,23 +65,27 @@ void loop()
   
   if (state==2){
     //light settings for state 2
-    if (current_millis - LED_last_task_millis >= LED_task_length){
-      LED_last_task_millis = millis();
-      uint32_t red = strip1.Color(255, 42, 0);
-      strip1.fill(red, 0, 7);      
-    }    
+    uint32_t red_orange = strip1.Color(255, 45, 0);
+    strip1.fill(red_orange, 0, 7);      
   }
   
-  if (state==3){
-    //light settings for state 3
-  }
-  
-  if (state==4){
-    //light settings for state 4
+  if (state>=3 and state < 20){
+    //light settings for state 3 - 9 - higher states will dimm the light
+    uint32_t red_R = 255 / ((float(state)/1.0) - 2.0);
+    uint32_t red_G = 10 / (float(state)/3.0);
+    uint32_t red_dimmable = strip1.Color(red_R, red_G, 0);
+    strip1.fill(red_dimmable, 0, 7);    
   }
 
+  if (state==20){
+    //light settings for state 3 - 9 - higher states will dimm the light
+    uint32_t red_dimmable = strip1.Color(0, 0, 0);
+    strip1.fill(red_dimmable, 0, 7);    
+  }
+  
+
   // Get signal from US sensors
-  if (state==1 or state==2 or state==3 or state==4){
+  if (state >= 1){
     
   
     // send trigger and run code in if statement with frequency --> US_frequency
