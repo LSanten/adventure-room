@@ -12,6 +12,7 @@ Adafruit_NeoPixel strip1(LED_COUNT, LED_PIN, NEO_RGBW + NEO_KHZ800);
 
 const int TRIGGER = 8;
 const int LED = 13;
+const int PWR_STRIP = 4;
 uint32_t serial_freq_time = 0;
 float measured_serial_freq;
 uint32_t US_frequency = 8; //frequency: clicks per second
@@ -43,6 +44,8 @@ void setup()
   pinMode(TRIGGER, OUTPUT);
   digitalWrite(TRIGGER, HIGH);
   pinMode(LED, OUTPUT);
+  pinMode(PWR_STRIP, OUTPUT);
+  digitalWrite(PWR_STRIP, LOW);
   Serial.begin(9600);
   strip1.begin();
   strip1.show(); // Initialize all pixels to 'off'
@@ -57,6 +60,7 @@ void loop()
   //    STATE  0
   //
   if (state==0){
+    digitalWrite(PWR_STRIP, HIGH);
     // lights flash and everything turns off when too close (too close is being regualted in MAX) - thrid condition: can only flash after 8 seconds
     if (state==0 and oldState != 0 and current_millis - LED_beginning_flash_millis > 10000){
       LED_beginning_flash_millis = current_millis;
@@ -104,6 +108,7 @@ void loop()
   //    STATE  1
   //  
   if (state==1){
+    digitalWrite(PWR_STRIP, LOW);
     //light settings for state 1
     if (current_millis - LED_last_task_millis >= LED_task_length){
       LED_last_task_millis = millis();
@@ -124,6 +129,7 @@ void loop()
   //    STATE  2
   //
   if (state==2){
+    digitalWrite(PWR_STRIP, HIGH);
     //light settings for state 3 - 9 - higher states will dimm the light
     uint32_t color_from_max = strip1.Color(colorB, colorA, colorC, colorD);
     strip1.fill(color_from_max, 0, 24);    
