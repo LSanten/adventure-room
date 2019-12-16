@@ -20,6 +20,9 @@ uint32_t LED_frequency = 10; //frequency of flickering for LEDS
 uint32_t current_millis; 
 uint32_t US_last_task_millis = 0;
 uint32_t LED_last_task_millis = 0;
+uint32_t PWR_STRIP_last_task_millis = 0; // time when power strip enters a state that is supposed to turn it off --> will turn off after timer
+uint32_t PWR_STRIP_counter_started = 0; //0 when counter for delay of power strip turn off is off - 1 when counter is on
+uint32_t PWR_STRIP_last_state = 0; // 0 when last cicle power strip was off - 1 when last cycle power strip was on
 uint32_t LED_beginning_flash_millis;
 uint32_t US_task_length = 1000/US_frequency; //task length for US sensors
 uint32_t LED_task_length = 1000/LED_frequency; //task length for LED flickering
@@ -37,7 +40,7 @@ int oldState = 0;
 String oldSubState;
 
 int number_of_sensors = 1; //the amount of ultrasonic sensors used
-int sensor_pins[] = {A2}; // input pins for sensor data - pin number refers to sensor from left to right in direction of traffic
+int sensor_pins[] = {A1}; // input pins for sensor data - pin number refers to sensor from left to right in direction of traffic
 
 void setup()
 {
@@ -50,6 +53,9 @@ void setup()
   strip1.begin();
   strip1.show(); // Initialize all pixels to 'off'
 
+  digitalWrite(PWR_STRIP, HIGH);
+  delay(1200);
+  digitalWrite(PWR_STRIP, LOW);
   
 }
 void loop()
@@ -61,6 +67,9 @@ void loop()
   //
   if (state==0){
     digitalWrite(PWR_STRIP, HIGH);
+    PWR_STRIP_counter_started== 0; //set to 0 so that counter has to restart before it turns off
+
+    
     // lights flash and everything turns off when too close (too close is being regualted in MAX) - thrid condition: can only flash after 8 seconds
     if (state==0 and oldState != 0 and current_millis - LED_beginning_flash_millis > 10000){
       LED_beginning_flash_millis = current_millis;
@@ -73,34 +82,38 @@ void loop()
     }
     // If flash was 8 seconds ago, shoot out one US signal 
     if (current_millis - LED_beginning_flash_millis > 5000){
-      digitalWrite(LED, HIGH);
-      US_last_task_millis = millis();
-      // generate the pulse to trigger the sensor
-      digitalWrite(TRIGGER, LOW);
-      delayMicroseconds(50);
-      digitalWrite(TRIGGER, HIGH);
-      delayMicroseconds(50);
+      if (current_millis - US_last_task_millis >= US_task_length){
+        digitalWrite(LED, HIGH);
+        US_last_task_millis = millis();
+        // generate the pulse to trigger the sensor
+        digitalWrite(TRIGGER, LOW);
+        delayMicroseconds(50);
+        digitalWrite(TRIGGER, HIGH);
+        delayMicroseconds(50);
     
-      unsigned int sensor_data[number_of_sensors];
-      String data_string; // string that contains data
+        unsigned int sensor_data[number_of_sensors];
+        String data_string; // string that contains data
   
-      // loop through sensors, read data, convert to mm, print data    
-      for (int i=0; i < number_of_sensors; i++){
-        sensor_data[i] = analogRead(sensor_pins[i]);
-        sensor_data[i] = (unsigned int)(((unsigned long)sensor_data[i] * 5000)/1024); //change from analog value to voltage
-        sensor_data[i] = (unsigned int)((float)sensor_data[i] / 0.33f); //0.33mV equals 1mm
-        //sensor_data[i] = (unsigned int)((float)sensor_data[i] * 0.438f);     
-        //sensor_data[i] = sensor_data[i] - 25
-        
-        data_string.concat(sensor_data[i]);
-        if (i < number_of_sensors - 1){
-          data_string.concat(' ');
-        }        
+        // loop through sensors, read data, convert to mm, print data    
+        for (int i=0; i < number_of_sensors; i++){
+          sensor_data[i] = analogRead(sensor_pins[i]);
+          sensor_data[i] = (unsigned int)(((unsigned long)sensor_data[i] * 5000)/1024); //change from analog value to voltage
+          sensor_data[i] = (unsigned int)((float)sensor_data[i] / 0.33f); //0.33mV equals 1mm
+          //sensor_data[i] = (unsigned int)((float)sensor_data[i] * 0.438f);     
+          //sensor_data[i] = sensor_data[i] - 25
+          
+          data_string.concat(sensor_data[i]);
+          if (i < number_of_sensors - 1){
+            data_string.concat(' ');
+          }        
       }
       //Serial.println(data_string);
       subState = data_string;      
       measured_serial_freq = 1000.0/(float(millis() - serial_freq_time)); // calc frequency with current time and time from last loop (serial_freq_time)
-      serial_freq_time = millis(); // take current time for next freq measurement    
+      serial_freq_time = millis(); // take current time for next freq measurement  
+        
+      }
+        
     }
   }
   
@@ -108,7 +121,11 @@ void loop()
   //    STATE  1
   //  
   if (state==1){
-    digitalWrite(PWR_STRIP, LOW);
+    // only turn off power strip if it was on for a certain amount of time
+    if (current_millis - PWR_STRIP_last_task_millis > 5000 and PWR_STRIP_counter_started == 1){
+      digitalWrite(PWR_STRIP, LOW);
+    }
+    
     //light settings for state 1
     if (current_millis - LED_last_task_millis >= LED_task_length){
       LED_last_task_millis = millis();
@@ -130,7 +147,8 @@ void loop()
   //
   if (state==2){
     digitalWrite(PWR_STRIP, HIGH);
-    //light settings for state 3 - 9 - higher states will dimm the light
+    PWR_STRIP_counter_started== 0; //set to 0 so that counter has to restart before it turns off
+    
     uint32_t color_from_max = strip1.Color(colorB, colorA, colorC, colorD);
     strip1.fill(color_from_max, 0, 24);    
   }
@@ -175,7 +193,34 @@ void loop()
    digitalWrite(LED, LOW);
   }
 
-  //RUN EVERY TIME - OUTSIDE OF STATEMACHINE
+  if (state == 1 and oldState != 1){
+    PWR_STRIP_last_task_millis = current_millis; 
+    PWR_STRIP_counter_started = 1;
+  }
+  if (state != 1){
+    PWR_STRIP_last_task_millis = current_millis;
+    PWR_STRIP_counter_started = 0;
+  }
+
+  // If PWR strip is on, machine is in state 1 (which is state when strip is supposed to be off), and power strip turn-off-counter hasn't started
+  //if (digitalRead(PWR_STRIP) == HIGH and state == 1 and PWR_STRIP_counter_started== 0){
+  //  PWR_STRIP_last_task_millis = current_millis; 
+  //  PWR_STRIP_counter_started = 1;
+  //}
+
+  // Flag when POWER STRIP turned on
+  //if (digitalRead(PWR_STRIP) == HIGH and PWR_STRIP_last_state == 0){
+  //  PWR_STRIP_last_task_millis = current_millis;
+  //  PWR_STRIP_last_state = 1;
+  //}
+  //if (digitalRead(PWR_STRIP) == LOW){
+  //  PWR_STRIP_last_state = 0;
+  //  PWR_STRIP_counter_started = 0;
+  //}
+
+  //
+  // RUN EVERY TIME - OUTSIDE OF STATEMACHINE
+  //
   if (state != oldState or subState != oldSubState){    
     Serial.print(state);
     Serial.print(" ");
@@ -196,4 +241,6 @@ void loop()
 
   // SHOW LED Changes
   strip1.show();
+
+  
 }
